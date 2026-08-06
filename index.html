@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tourenplanungsformular</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#111c33; --panel2:#16233f; --line:#25324f;
+    --txt:#e6ecf7; --muted:#93a2c2; --accent:#3b82f6; --accent2:#22c55e;
+    --warn:#f59e0b; --red:#ef4444; --card:#152443;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:"Segoe UI",Roboto,-apple-system,Helvetica,Arial,sans-serif;
+    font-size:14px; line-height:1.45;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+
+  /* ---------- App-Kopf (nur Bildschirm) ---------- */
+  .appbar{
+    background:linear-gradient(90deg,#0b1428,#152443);
+    padding:12px 22px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    position:sticky; top:0; z-index:20;
+  }
+  .appbar h1{font-size:17px; margin:0; font-weight:650}
+  .appbar .sub{color:var(--muted); font-size:12px}
+  .appbar .copy{color:var(--muted); font-size:11.5px; opacity:.75; margin-top:1px}
+  .appbar .tools{display:flex; gap:9px; align-items:center; flex-wrap:wrap}
+  .btn{
+    background:var(--accent); color:#fff; border:none; padding:8px 14px; border-radius:7px;
+    font-size:13px; cursor:pointer; font-weight:550; font-family:inherit;
+  }
+  .btn:hover{filter:brightness(1.1)}
+  .btn.ghost{background:transparent; border:1px solid var(--line); color:var(--txt)}
+  .btn.sm{padding:5px 10px; font-size:12px}
+  .btn.icon{background:transparent; border:none; color:var(--muted); padding:2px 5px; font-size:13px; cursor:pointer; line-height:1}
+  .btn.icon:hover{color:var(--red)}
+
+  .wrap{max-width:1000px; margin:0 auto; padding:20px 16px 70px}
+
+  /* ---------- Formularblatt ----------
+     Am Bildschirm ein durchgehendes Blatt; erst im Druck wird in Seite 1 / 2 getrennt. */
+  .paper{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:24px 26px 20px;
+  }
+  .sheet{padding:0; margin:0}
+  .printonly{display:none !important}
+  .sheet h1{font-size:22px; margin:0 0 14px; font-weight:700; letter-spacing:-.2px}
+  .sheet h2{font-size:17px; margin:22px 0 9px; font-weight:650}
+  .sheet h3{font-size:13px; margin:0 0 7px; font-weight:650; color:var(--muted); text-transform:uppercase; letter-spacing:.5px}
+  .sheethead{display:flex; justify-content:space-between; align-items:flex-start; gap:18px}
+  .hero{font-size:40px; line-height:1; flex:none}
+
+  /* Kopfzeilen mit Beschriftung + Linie */
+  .frow{display:flex; flex-wrap:wrap; gap:8px 22px; margin-bottom:7px; align-items:baseline}
+  .fi{display:flex; align-items:baseline; gap:8px; flex:1 1 auto; min-width:190px}
+  .fi.wide{flex:1 1 100%}
+  .fi label{font-size:13.5px; white-space:nowrap; color:var(--txt)}
+  .fi input, .fi select{
+    flex:1; min-width:60px; background:transparent; border:none; border-bottom:1px solid var(--line);
+    color:var(--txt); font:inherit; font-size:13.5px; padding:3px 4px;
+  }
+  .fi input:focus, .fi select:focus{outline:none; border-bottom-color:var(--accent); background:rgba(59,130,246,.07)}
+  .fi select option{background:var(--panel2); color:var(--txt)}
+
+  /* ---------- Tabellen ---------- */
+  table{width:100%; border-collapse:collapse; font-size:12.5px}
+  th,td{border:1px solid var(--line); padding:0; vertical-align:middle}
+  th{
+    background:var(--panel2); color:var(--txt); font-weight:600; font-size:11.5px;
+    padding:6px 5px; text-align:center; line-height:1.25;
+  }
+  td input, td select{
+    width:100%; background:transparent; border:none; color:var(--txt);
+    font:inherit; font-size:12.5px; padding:5px 6px;
+  }
+  td input:focus, td select:focus{outline:none; background:rgba(59,130,246,.12)}
+  td input[type=number]{text-align:right; font-variant-numeric:tabular-nums}
+  input[type=number]::-webkit-inner-spin-button{opacity:.35}
+  .cell-c{text-align:center; font-variant-numeric:tabular-nums; padding:5px 4px; color:var(--muted)}
+  .cell-c.on{color:var(--txt); font-weight:600}
+  .dash{color:#4a5878; text-align:center; display:block; padding:5px 0}
+
+  #route col.c-ort{width:19%} #route col.c-time{width:8%} #route col.c-alt{width:8%}
+  #route col.c-hm{width:14%} #route col.c-dist{width:8%} #route col.c-need{width:8%}
+  #route col.c-act{width:3%}
+  .hmcell{display:flex; align-items:center; gap:2px; padding:0 4px}
+  .hmcell .sgn{color:var(--muted); font-size:11px; flex:none}
+  .hmcell input{text-align:right; padding:5px 2px}
+  /* Werte im Routenverlauf mittig unter der jeweiligen Spaltenüberschrift */
+  td input.r-start-time, td input.r-alt, td input.r-up, td input.r-down,
+  td input.r-dist, td input.r-pmin{text-align:center}
+  td input.r-start-time{font-weight:600}
+  td input.r-pmin{font-weight:600}
+  tr.r-pause td{background:rgba(245,158,11,.07)}
+  tr.r-start td{background:rgba(34,197,94,.07)}
+  .rowtools{display:flex; gap:8px; margin-top:9px; align-items:center; flex-wrap:wrap}
+  .sum{margin-left:auto; color:var(--muted); font-size:12px}
+
+  /* ---------- Marschzeit ---------- */
+  .marsch{display:grid; grid-template-columns:minmax(320px,1fr) minmax(300px,1fr); gap:20px; align-items:start}
+  @media(max-width:780px){ .marsch{grid-template-columns:1fr} }
+  #mtab td{padding:0}
+  #mtab td.lbl{padding:5px 8px; font-weight:600; font-size:13px; white-space:nowrap}
+  #mtab td.unit{padding:5px 8px; color:var(--muted); font-size:11.5px; text-align:right; white-space:nowrap}
+  #mtab td.res{padding:5px 8px; text-align:center; font-variant-numeric:tabular-nums; font-weight:600; width:74px}
+  #mtab tr.total td{background:var(--panel2); font-size:14px}
+  #mtab tr.total td.res{color:#5be08a; font-size:16px}
+  .basis{font-size:12px; line-height:1.55}
+  .basis h3{margin-bottom:5px}
+  .basis b{color:var(--txt)}
+  .basis p{margin:6px 0 0; color:var(--muted)}
+  .basis ul{margin:4px 0; padding-left:17px; color:var(--muted)}
+
+  /* ---------- Info-Block ---------- */
+  .inforow{display:flex; align-items:stretch; border:1px solid var(--line); border-top:none}
+  .inforow:first-child{border-top:1px solid var(--line)}
+  .inforow .il{flex:0 0 300px; padding:7px 9px; font-size:13px; border-right:1px solid var(--line)}
+  .inforow .iv{flex:1; display:flex; align-items:center; gap:6px; padding:0 4px}
+  .inforow input{flex:1; background:transparent; border:none; color:var(--txt); font:inherit; font-size:13px; padding:6px}
+  .inforow input:focus{outline:none; background:rgba(59,130,246,.1)}
+  .inforow .tag{font-size:12px; font-weight:650; color:var(--muted); padding-left:8px; white-space:nowrap}
+  .inforow input.short{flex:0 0 120px}
+  .ptext{display:none}
+
+  /* ---------- Wetter ---------- */
+  .weather{display:grid; grid-template-columns:repeat(5,1fr); gap:0; border:1px solid var(--line)}
+  @media(max-width:820px){ .weather{grid-template-columns:repeat(2,1fr)} }
+  .wcol{padding:9px 11px; border-left:1px solid var(--line)}
+  .wcol:first-child{border-left:none}
+  .wico{font-size:20px; line-height:1.1}
+  .wtit{font-weight:650; font-size:13px; margin:2px 0 7px}
+  .cb{display:flex; align-items:center; gap:7px; font-size:12.5px; margin-bottom:4px; cursor:pointer}
+  .cb input{flex:none}
+  .wsub{display:flex; align-items:baseline; gap:6px; font-size:12.5px; margin-top:6px; flex-wrap:wrap}
+  .wsub input, .wsub select{
+    background:transparent; border:none; border-bottom:1px solid var(--line); color:var(--txt);
+    font:inherit; font-size:12.5px; padding:2px 3px; width:74px;
+  }
+  .wsub select{width:84px}
+  .wsub select option{background:var(--panel2)}
+  .wsub input:focus, .wsub select:focus{outline:none; border-bottom-color:var(--accent)}
+
+  /* Checkbox-Optik (druckfest) */
+  input[type=checkbox]{
+    appearance:none; -webkit-appearance:none; width:13px; height:13px; border:1.4px solid var(--muted);
+    border-radius:2.5px; background:transparent; cursor:pointer; position:relative; margin:0; flex:none;
+  }
+  input[type=checkbox]:checked{border-color:var(--accent2); background:var(--accent2)}
+  input[type=checkbox]:checked::after{
+    content:"✓"; position:absolute; inset:0; color:#06210f; font-size:11px; font-weight:800;
+    display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+
+  /* ---------- Risikobewertung ---------- */
+  .risklegend{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:8px; flex-wrap:wrap}
+  .risklegend .lbl{font-size:11.5px; color:var(--muted); max-width:150px; line-height:1.3}
+  .faces{display:flex; gap:7px; align-items:center}
+  .riskgrid{display:grid; grid-template-columns:minmax(180px,240px) 1fr; gap:4px 14px; align-items:center}
+  @media(max-width:640px){ .riskgrid{grid-template-columns:1fr; gap:2px} }
+  .rname{font-size:12.5px; padding:3px 0}
+  .scale{
+    position:relative; height:22px; border-radius:4px; cursor:pointer; border:1px solid var(--line);
+    background:linear-gradient(90deg,#22c55e 0%,#84cc16 25%,#eab308 50%,#f97316 75%,#ef4444 100%);
+    opacity:.85;
+  }
+  .scale:focus{outline:2px solid var(--accent); outline-offset:2px}
+  .scale .marker{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    font-size:15px; font-weight:800; color:#0b1220; text-shadow:0 0 3px rgba(255,255,255,.9);
+    pointer-events:none; display:none;
+  }
+  .scale.set .marker{display:block}
+  .scale .ph{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:10.5px; color:rgba(11,18,32,.65); pointer-events:none;
+  }
+  .scale.set .ph{display:none}
+  .rgroup{margin-bottom:14px}
+  .rgroup h3{color:var(--warn)}
+  .rgroup.obj h3{color:#38bdf8}
+
+  .checklist{border:1px solid transparent; border-radius:10px; padding:8px 10px; margin:-8px -10px; transition:.18s}
+  .checklist.complete{border-color:#1c4a30; background:rgba(34,197,94,.11)}
+  .checklist .cb{margin-bottom:6px; font-size:13px; align-items:flex-start; line-height:1.4}
+  .checklist .cb input{margin-top:2px}
+  .allok{display:none; margin-top:8px; color:#5be08a; font-size:12.5px; font-weight:600}
+  .checklist.complete .allok{display:block}
+  textarea{
+    width:100%; min-height:120px; background:transparent; border:1px solid var(--line); border-radius:8px;
+    color:var(--txt); font:inherit; font-size:13px; padding:8px 10px; resize:vertical;
+  }
+  textarea:focus{outline:none; border-color:var(--accent)}
+
+  .twocol{display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start}
+  @media(max-width:780px){ .twocol{grid-template-columns:1fr} }
+
+  .sheetfoot{
+    display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;
+    margin-top:18px; padding-top:9px; border-top:1px solid var(--line);
+    font-size:11.5px; color:var(--muted);
+  }
+  .sheetfoot b{color:var(--txt); font-weight:650}
+  .note{color:var(--muted); font-size:12px; margin-top:9px}
+  .warnline{color:var(--warn); font-size:12px; min-height:16px; margin-top:6px}
+
+  /* ---------- Berechnungsdetails (nur Bildschirm) ---------- */
+  .kpigrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:11px}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 13px; position:relative; overflow:hidden}
+  .kpi::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--accent)}
+  .kpi.up::before{background:var(--warn)}
+  .kpi.down::before{background:#38bdf8}
+  .kpi.flat::before{background:var(--accent2)}
+  .kpi.half::before{background:#a78bfa}
+  .kpi .k{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px}
+  .kpi .v{font-size:19px; font-weight:650; margin-top:2px; font-variant-numeric:tabular-nums}
+  .kpi .s{font-size:10.5px; color:var(--muted); margin-top:2px}
+  .legs{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:12px}
+  @media(max-width:760px){ .legs{grid-template-columns:1fr} }
+  .leg{background:var(--card); border:1px solid var(--line); border-radius:11px; padding:13px 15px; border-top:3px solid var(--line)}
+  .leg.up{border-top-color:var(--warn)}
+  .leg.down{border-top-color:#38bdf8}
+  .leg .lt{font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px}
+  .leg .lv{font-size:26px; font-weight:700; margin:4px 0 1px; font-variant-numeric:tabular-nums}
+  .leg .lsub{font-size:11.5px; color:var(--muted); margin-bottom:9px}
+  .formula{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:11.5px; color:var(--muted); line-height:1.8}
+  .formula b{color:var(--txt); font-weight:600}
+  .formula .hl{color:#5be08a}
+  .leg .formula{border-top:1px solid var(--line); padding-top:9px}
+  .box{background:var(--card); border:1px solid var(--line); border-radius:11px; padding:14px 16px; margin-top:12px}
+  details{margin-top:16px}
+  summary{cursor:pointer; color:var(--muted); font-size:12.5px; user-select:none; padding:4px 0}
+  summary:hover{color:var(--txt)}
+  summary.detsum{font-size:14px; font-weight:600; color:var(--txt)}
+  summary.detsum .hintx{font-size:12px; font-weight:400; color:var(--muted)}
+  .params{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px}
+  .p{background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:7px 11px; display:flex; align-items:center; gap:8px; font-size:12.5px}
+  .p span{color:var(--muted)}
+  .p input{width:76px; background:var(--panel); border:1px solid var(--line); color:var(--txt); border-radius:6px; padding:4px 6px; font:inherit; font-size:12.5px; text-align:right}
+
+  /* =======================================================
+     DRUCK / PDF  —  2 Seiten A4, helles Layout
+     ======================================================= */
+  @page{ size:A4 portrait; margin:11mm 10mm; }
+
+  @media print{
+    body{background:#fff; color:#000; font-size:9pt; line-height:1.3}
+    .appbar, .noprint, .rowtools, .btn, details, .warnline{display:none !important}
+    .wrap{max-width:none; margin:0; padding:0}
+
+    .paper{background:#fff; border:none; border-radius:0; padding:0}
+    .printonly{display:block !important}
+    .sheetfoot.printonly{display:flex !important}
+    .sheet{
+      background:#fff; border:none; border-radius:0; padding:0; margin:0;
+      break-after:page; page-break-after:always;
+    }
+    .sheet:last-of-type{break-after:auto; page-break-after:auto}
+
+    .sheet h1{font-size:16pt; color:#000; margin:0 0 8pt}
+    .sheet h2{font-size:12.5pt; color:#000; margin:11pt 0 4pt}
+    .sheet h3{font-size:8.5pt; color:#333}
+    .hero{font-size:30pt}
+
+    .fi label{font-size:9pt; color:#000}
+    .fi input, .fi select{color:#000; border-bottom:1px dotted #666; font-size:9pt; background:none !important}
+
+    table{font-size:7.6pt}
+    th,td{border:.6pt solid #999}
+    th{background:#e9e9e9 !important; color:#000; font-size:7.4pt; padding:3pt 2pt}
+    td input, td select{color:#000; font-size:7.6pt; padding:2.6pt 3pt; background:none !important}
+    .cell-c, .cell-c.on{color:#000; padding:2.6pt 2pt}
+    .hmcell .sgn{color:#333; font-size:7pt}
+    .dash{color:#aaa}
+
+    /* Bedienelemente der Eingabefelder gehören nicht aufs Papier */
+    input[type=number]{appearance:textfield; -moz-appearance:textfield}
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button{display:none !important; appearance:none}
+    input[type=date]::-webkit-calendar-picker-indicator,
+    input[type=time]::-webkit-calendar-picker-indicator{display:none !important}
+    select{appearance:none; -webkit-appearance:none; background-image:none !important}
+    tr.r-pause td{background:#f6f1e6 !important}
+    tr.r-start td{background:#eef7ef !important}
+    tr:nth-child(even) td{background:#fafafa}
+    tr.r-pause:nth-child(even) td{background:#f6f1e6 !important}
+    #route col.c-act{width:0}
+    td.actcell{display:none}
+    th.actcell{display:none}
+
+    #mtab td.lbl, #mtab td.unit, #mtab td.res{color:#000; font-size:8.4pt; padding:3pt 5pt}
+    #mtab tr.total td{background:#ececec !important; font-size:9pt}
+    #mtab tr.total td.res{color:#000}
+    .basis{font-size:7.8pt}
+    .basis b{color:#000}
+    .basis p, .basis ul{color:#222}
+
+    .inforow{border-color:#999}
+    .inforow .il{border-right-color:#999; font-size:8.6pt; color:#000; flex-basis:170pt}
+    .inforow .iv{align-items:stretch}
+    /* Eingefelder klippen langen Text — im Druck stattdessen den vollen Wert umbrechen */
+    .inforow input{display:none}
+    .inforow .ptext{
+      display:block; flex:1; color:#000; font-size:8.6pt; padding:3.5pt 5pt;
+      overflow-wrap:anywhere; min-height:1em;
+    }
+    .inforow .ptext.short{flex:0 0 60pt}
+    .inforow .tag{color:#000; align-self:center}
+
+    .weather{border-color:#999}
+    .wcol{border-left-color:#999; padding:5pt 6pt}
+    .wico{font-size:13pt}
+    .wtit{font-size:8.6pt; color:#000}
+    .cb{font-size:8.2pt; color:#000; margin-bottom:2.5pt}
+    .wsub{font-size:8.2pt; color:#000}
+    .wsub input, .wsub select{color:#000; border-bottom-color:#666; font-size:8.2pt; background:none !important}
+    input[type=checkbox]{width:9pt; height:9pt; border:.8pt solid #444; border-radius:1.5pt}
+    input[type=checkbox]:checked{background:#fff !important; border-color:#000}
+    input[type=checkbox]:checked::after{content:"✕"; color:#000; font-size:8pt}
+
+    .risklegend .lbl{color:#000; font-size:8pt}
+    .rname{font-size:8.4pt; color:#000}
+    .scale{height:11pt; border:.6pt solid #888; opacity:1}
+    .scale .ph{display:none !important}
+    .scale .marker{color:#000; text-shadow:none; font-size:10pt}
+    .riskgrid{grid-template-columns:150pt 1fr; gap:1.5pt 9pt}
+    .rgroup{margin-bottom:8pt}
+    .rgroup h3, .rgroup.obj h3{color:#000; margin-bottom:3pt}
+
+    .checklist{border:none !important; background:none !important; padding:0; margin:0}
+    .checklist .cb{font-size:8.6pt; margin-bottom:4pt}
+    .allok{display:none !important}
+    textarea{border:.6pt solid #999; color:#000; min-height:92pt; font-size:8.6pt; background:none !important}
+
+    .sheetfoot{border-top:.6pt solid #999; color:#000; font-size:8pt; margin-top:10pt; padding-top:4pt}
+    .sheetfoot b{color:#000}
+    .note{color:#333; font-size:7.6pt}
+
+    /* A4 ist schmaler als die Bildschirm-Breakpoints — Spalten hier erzwingen */
+    .weather{grid-template-columns:repeat(5,1fr) !important}
+    .marsch{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; gap:14pt}
+    .twocol{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; gap:14pt}
+  }
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div>
+    <h1>Tourenplanungsformular</h1>
+    <div class="sub">Sommer · 2 Seiten</div>
+    <div class="copy">© Ing. Manuel Wilhelmer</div>
+  </div>
+  <div class="tools">
+    <button class="btn ghost sm" id="btnDemo">Beispiel füllen</button>
+    <button class="btn ghost sm" id="btnClear">Formular leeren</button>
+    <button class="btn" id="btnPdf">⤓ Als PDF exportieren</button>
+  </div>
+</div>
+
+<div class="wrap">
+<div class="paper">
+
+<!-- ═══════════════════════ SEITE 1 ═══════════════════════ -->
+<section class="sheet" id="page1">
+
+  <div class="sheethead">
+    <div style="flex:1">
+      <h1 class="printonly">Tourenplanungsformular</h1>
+
+      <div class="frow">
+        <div class="fi"><label>Tour:</label><input type="text" id="f_tour"></div>
+        <div class="fi"><label>Tourenziel:</label><input type="text" id="f_ziel"></div>
+      </div>
+      <div class="frow">
+        <div class="fi" style="min-width:150px"><label>Datum:</label><input type="date" id="f_datum"></div>
+        <div class="fi"><label>Treffpunkt:</label><input type="text" id="f_treff"></div>
+        <div class="fi" style="min-width:130px"><label>Uhrzeit:</label><input type="time" id="f_uhrzeit"></div>
+      </div>
+      <div class="frow">
+        <div class="fi"><label>Name / Führer:</label><input type="text" id="f_fuehrer"></div>
+        <div class="fi"><label>Teilnehmer / Gruppengröße:</label><input type="text" id="f_gruppe"></div>
+      </div>
+      <div class="frow">
+        <div class="fi wide"><label>Teilnehmer, Namen:</label><input type="text" id="f_namen"></div>
+      </div>
+    </div>
+    <div class="hero">🏔️</div>
+  </div>
+
+  <h2>Zeitplan - Routenverlauf</h2>
+  <table id="route">
+    <colgroup>
+      <col class="c-ort"><col class="c-time"><col class="c-alt"><col class="c-hm">
+      <col class="c-dist"><col class="c-need"><col><col class="c-act">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Ort</th><th>Uhrzeit</th><th>Höhe</th><th>Höhenmeter<br>+ / −</th>
+        <th>Distanz<br>km</th><th>Zeitbedarf<br>min.</th><th>Kommentar zu Abschnitt</th>
+        <th class="actcell noprint"></th>
+      </tr>
+    </thead>
+    <tbody id="routeBody"></tbody>
+  </table>
+  <div class="rowtools noprint">
+    <button class="btn sm" id="addLeg">+ Abschnitt</button>
+    <button class="btn sm ghost" id="addPause">+ Pause</button>
+    <span class="sum" id="routeSum"></span>
+  </div>
+
+  <h2>Marschzeitberechnung</h2>
+  <div class="marsch">
+    <div>
+      <table id="mtab">
+        <tr>
+          <td class="lbl">Aufstieg&nbsp; ↑</td>
+          <td><input type="number" id="m_up" min="0" step="10"></td>
+          <td class="unit">Höhenmeter</td>
+          <td class="res" id="r_up">00:00</td>
+        </tr>
+        <tr>
+          <td class="lbl">Abstieg&nbsp; ↓</td>
+          <td><input type="number" id="m_down" min="0" step="10"></td>
+          <td class="unit">Höhenmeter</td>
+          <td class="res" id="r_down">00:00</td>
+        </tr>
+        <tr>
+          <td class="lbl">Distanz&nbsp; ↔</td>
+          <td><input type="number" id="m_dist" min="0" step="0.1"></td>
+          <td class="unit">Kilometer</td>
+          <td class="res" id="r_dist">00:00</td>
+        </tr>
+        <tr>
+          <td class="lbl">Pausen&nbsp; ⏱</td>
+          <td><input type="number" id="m_pause" min="0" step="5"></td>
+          <td class="unit">Minuten</td>
+          <td class="res" id="r_pause">00:00</td>
+        </tr>
+        <tr class="total">
+          <td class="lbl" colspan="3">Gesamt Zeit</td>
+          <td class="res" id="r_total">00:00</td>
+        </tr>
+      </table>
+      <label class="cb noprint" style="margin-top:9px">
+        <input type="checkbox" id="autoSum" checked>
+        <span>Werte automatisch aus dem Routenverlauf übernehmen</span>
+      </label>
+      <div class="warnline noprint" id="warn"></div>
+    </div>
+
+    <div class="basis">
+      <h3>Bemessungsgrundlage</h3>
+      <div>Ein Wanderer legt in einer Stunde zurück:</div>
+      <ul>
+        <li><b>300 Höhenmeter</b> im Aufstieg</li>
+        <li><b>500 Höhenmeter</b> im Abstieg</li>
+        <li><b>4 km</b> Horizontalentfernung</li>
+      </ul>
+      <p>Die nominale Gehzeit einer Strecke wird errechnet, indem der kleinere Wert der berechneten
+      Zeiten für die horizontale und vertikale Entfernung halbiert und zum größeren Wert addiert wird.</p>
+    </div>
+  </div>
+
+  <!-- ══════════ Berechnungsdetails – nur Bildschirm ══════════ -->
+  <details class="noprint" id="details">
+    <summary class="detsum">Berechnungsdetails anzeigen <span class="hintx">— nur Bildschirm, nicht im PDF</span></summary>
+
+    <div class="kpigrid" style="margin-top:12px">
+      <div class="kpi up"><div class="k">Zeit Aufstieg</div><div class="v" id="kUp">–</div><div class="s" id="kUpS"></div></div>
+      <div class="kpi down"><div class="k">Zeit Abstieg</div><div class="v" id="kDown">–</div><div class="s" id="kDownS"></div></div>
+      <div class="kpi half"><div class="k">Vertikalzeit gesamt</div><div class="v" id="kVert">–</div><div class="s">Aufstieg + Abstieg</div></div>
+      <div class="kpi flat"><div class="k">Horizontalzeit</div><div class="v" id="kHor">–</div><div class="s" id="kHorS"></div></div>
+    </div>
+
+    <div class="legs">
+      <div class="leg up">
+        <div class="lt">▲ Gehzeit zum Gipfel</div>
+        <div class="lv" id="gTime">–</div>
+        <div class="lsub" id="gSub"></div>
+        <div class="formula" id="gCalc"></div>
+      </div>
+      <div class="leg down">
+        <div class="lt">▼ Gehzeit zurück ins Tal</div>
+        <div class="lv" id="bTime">–</div>
+        <div class="lsub" id="bSub"></div>
+        <div class="formula" id="bCalc"></div>
+      </div>
+    </div>
+    <div class="note" id="legNote"></div>
+
+    <div class="box"><div class="formula" id="calc"></div></div>
+
+    <div class="params">
+      <div class="p"><span>Aufstieg</span><input type="number" id="rateUp" value="300" min="1" step="10"><span>Hm/h</span></div>
+      <div class="p"><span>Abstieg</span><input type="number" id="rateDown" value="500" min="1" step="10"><span>Hm/h</span></div>
+      <div class="p"><span>Horizontal</span><input type="number" id="rateFlat" value="4" min="0.1" step="0.1"><span>km/h</span></div>
+      <button class="btn ghost sm" id="rateReset">Standardwerte</button>
+    </div>
+    <div class="note">Leistungsannahmen — Standard: 300 Hm/h Aufstieg, 500 Hm/h Abstieg, 4 km/h Horizontalentfernung.
+      Änderungen wirken auf den Routenverlauf und die Marschzeitberechnung.</div>
+  </details>
+
+  <h2>Wichtige Informationen</h2>
+  <div class="infoblock">
+    <div class="inforow">
+      <div class="il">Klassifizierung des Weges, der Strecke</div>
+      <div class="iv"><input type="text" id="i_klasse"></div>
+    </div>
+    <div class="inforow">
+      <div class="il">Wichtige Telefonnummern (Hütte,..)</div>
+      <div class="iv">
+        <input type="text" id="i_tel">
+        <span class="tag">Notruf</span><input type="text" id="i_notruf" class="short">
+      </div>
+    </div>
+    <div class="inforow">
+      <div class="il">Anreise | ÖV | PKW | Bus | Taxi | Bahn | Rückreise</div>
+      <div class="iv"><input type="text" id="i_anreise"></div>
+    </div>
+    <div class="inforow">
+      <div class="il">Verpflegung, Kosten</div>
+      <div class="iv"><input type="text" id="i_verpflegung"></div>
+    </div>
+    <div class="inforow">
+      <div class="il">Zusätzliche Ausrüstung</div>
+      <div class="iv"><input type="text" id="i_ausruestung"></div>
+    </div>
+  </div>
+
+  <div class="sheetfoot printonly">
+    <div>© Ing. Manuel Wilhelmer</div>
+    <div><b>Tourenplanungsformular Sommer - Seite 1 von 2</b></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ SEITE 2 ═══════════════════════ -->
+<section class="sheet" id="page2">
+  <h1 class="printonly">Tourenplanungsformular</h1>
+
+  <h2>Wetter</h2>
+  <div class="weather">
+    <div class="wcol">
+      <div class="wico">⛅</div><div class="wtit">Bewölkung</div>
+      <label class="cb"><input type="checkbox" id="w_b1"><span>sonnig</span></label>
+      <label class="cb"><input type="checkbox" id="w_b2"><span>wechselnd bewölkt</span></label>
+      <label class="cb"><input type="checkbox" id="w_b3"><span>stark bewölkt</span></label>
+    </div>
+    <div class="wcol">
+      <div class="wico">🌧️</div><div class="wtit">Niederschlag</div>
+      <label class="cb"><input type="checkbox" id="w_n1"><span>wenig</span></label>
+      <label class="cb"><input type="checkbox" id="w_n2"><span>zeitweise</span></label>
+      <label class="cb"><input type="checkbox" id="w_n3"><span>ergiebig</span></label>
+    </div>
+    <div class="wcol">
+      <div class="wico">⛈️</div><div class="wtit">Gewitter</div>
+      <label class="cb"><input type="checkbox" id="w_g1"><span>einzelne</span></label>
+      <label class="cb"><input type="checkbox" id="w_g2"><span>verbreitet, heftig</span></label>
+      <div class="wsub"><span>Ab wann</span><input type="time" id="w_gab"></div>
+    </div>
+    <div class="wcol">
+      <div class="wico">💨</div><div class="wtit">Wind</div>
+      <label class="cb"><input type="checkbox" id="w_w1"><span>schwach</span></label>
+      <label class="cb"><input type="checkbox" id="w_w2"><span>mässig</span></label>
+      <label class="cb"><input type="checkbox" id="w_w3"><span>stark</span></label>
+      <label class="cb"><input type="checkbox" id="w_w4"><span>stürmisch</span></label>
+    </div>
+    <div class="wcol">
+      <div class="wico">🌡️</div><div class="wtit">Temperatur</div>
+      <div class="wsub"><span>Nullgradgrenze</span><input type="number" id="w_null" step="50"><span>m.ü.M.</span></div>
+      <div class="wsub"><span>auf 2.000 m</span><input type="number" id="w_t2000" step="1" style="width:52px"><span>°C</span></div>
+      <div class="wsub"><span>Wind aus Richtung</span>
+        <select id="w_dir">
+          <option value=""></option>
+          <option>N</option><option>NO</option><option>O</option><option>SO</option>
+          <option>S</option><option>SW</option><option>W</option><option>NW</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <h2>Risikobewertung</h2>
+  <div class="risklegend">
+    <div class="lbl">Einfach, optimal</div>
+    <div class="faces">
+      <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#22c55e"/><circle cx="8.5" cy="9.5" r="1.4" fill="#0b2a17"/><circle cx="15.5" cy="9.5" r="1.4" fill="#0b2a17"/><path d="M7 14.2q5 5 10 0" stroke="#0b2a17" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#84cc16"/><circle cx="8.5" cy="9.5" r="1.4" fill="#0b2a17"/><circle cx="15.5" cy="9.5" r="1.4" fill="#0b2a17"/><path d="M7.5 14.6q4.5 2.8 9 0" stroke="#0b2a17" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#eab308"/><circle cx="8.5" cy="9.5" r="1.4" fill="#0b2a17"/><circle cx="15.5" cy="9.5" r="1.4" fill="#0b2a17"/><path d="M7.5 15h9" stroke="#0b2a17" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#f97316"/><circle cx="8.5" cy="9.5" r="1.4" fill="#2a1206"/><circle cx="15.5" cy="9.5" r="1.4" fill="#2a1206"/><path d="M7.5 15.8q4.5 -2.8 9 0" stroke="#2a1206" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#ef4444"/><circle cx="8.5" cy="9.5" r="1.4" fill="#2a0606"/><circle cx="15.5" cy="9.5" r="1.4" fill="#2a0606"/><path d="M7 16.6q5 -5 10 0" stroke="#2a0606" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>
+    </div>
+    <div class="lbl" style="text-align:right">Persönliches Limit, schlecht, unklar</div>
+  </div>
+
+  <div class="rgroup">
+    <h3>Subjektive Gefahren</h3>
+    <div class="riskgrid" id="riskSub"></div>
+  </div>
+  <div class="rgroup obj">
+    <h3>Objektive Gefahren</h3>
+    <div class="riskgrid" id="riskObj"></div>
+  </div>
+  <div class="note">
+    Die Risikobewertung zeigt qualitativ, welches Risiko eine geplante Tour mit sich bringt.
+    Jeder Punkt wird auf der Skala zwischen «optimal» und «schlecht» bzw. zwischen «für uns leicht» und
+    «persönliches Limit» eingestuft — je nach Tour für die Führung, die ganze Gruppe oder das schwächste
+    Gruppenmitglied. Betrachtet man die gesetzten Marken als Gewichtung, wird die Stabilität der Tour
+    auf einen Blick sichtbar: <b>Viel Rot verlangt auch viel Grün.</b>
+  </div>
+
+  <div class="twocol" style="margin-top:16px">
+    <div>
+      <h2 style="margin-top:0">Check zur Tourenplanung</h2>
+      <div class="note" style="margin:0 0 8px">Die Tour ist gut vorbereitet, wenn diese sechs Punkte
+        mit «ja» beantwortet werden können:</div>
+      <div class="checklist" id="checklist">
+        <label class="cb"><input type="checkbox" id="c1"><span>Der Routenverlauf ist mir klar, und ich habe ihn mir eingeprägt</span></label>
+        <label class="cb"><input type="checkbox" id="c2"><span>Ich habe die Schlüsselstellen gesucht und eine gute Taktik für diese</span></label>
+        <label class="cb"><input type="checkbox" id="c3"><span>Ich habe Alternativen, falls meine Vorstellung nicht der Realität entspricht</span></label>
+        <label class="cb"><input type="checkbox" id="c4"><span>Mein Tourenplan ist realistisch (Zeitplan, persönliches Können, Ausrüstung, usw.)</span></label>
+        <label class="cb"><input type="checkbox" id="c5"><span>Die aktuellen Verhältnisse erlauben diese Tour, und ich habe ein gutes Gefühl</span></label>
+        <label class="cb"><input type="checkbox" id="c6"><span>Die Gruppenleitung ist klar geregelt. Alle Mitglieder sind informiert und motiviert</span></label>
+        <div class="allok" id="allok">✓ Alle sechs Punkte erfüllt — die Tour ist gut vorbereitet.</div>
+      </div>
+    </div>
+    <div>
+      <h2 style="margin-top:0">Weitere Infos, Schlüsselstellen</h2>
+      <textarea id="p2_infos"></textarea>
+    </div>
+  </div>
+
+  <div class="sheetfoot printonly">
+    <div>© Ing. Manuel Wilhelmer</div>
+    <div><b>Tourenplanungsformular Sommer - Seite 2 von 2</b></div>
+  </div>
+</section>
+
+<div class="note noprint" style="margin-top:20px; padding-top:12px; border-top:1px solid var(--line)">
+  <b style="color:var(--txt)">PDF-Export:</b> Im Druckdialog als Ziel „Als PDF sichern" wählen und unter
+  „Weitere Einstellungen" die <b style="color:var(--txt)">Kopf- und Fußzeilen deaktivieren</b> — sonst druckt
+  der Browser Dateipfad und Datum über die Formularfußzeile. Ränder auf „Standard", Papierformat A4.
+</div>
+
+</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $  = s => document.querySelector(s);
+  const $$ = s => Array.prototype.slice.call(document.querySelectorAll(s));
+
+  /* ---------------- Hilfsfunktionen ---------------- */
+  const numv = el => { if(!el) return 0; const v = parseFloat(String(el.value).replace(',','.')); return isFinite(v) ? v : 0; };
+  const fmtN = (v,d) => v.toLocaleString('de-DE',{minimumFractionDigits:d, maximumFractionDigits:d});
+
+  function fmtHM(h){
+    if(!isFinite(h) || h < 0) return '–';
+    const m = Math.round(h*60);
+    return Math.floor(m/60) + ':' + String(m%60).padStart(2,'0');
+  }
+  /* zweistellig für die Marschzeittabelle: leer/0 ergibt 00:00 */
+  function fmtHM2(h){
+    if(!isFinite(h) || h < 0) h = 0;
+    const m = Math.round(h*60);
+    return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+  }
+  function parseClock(s){
+    if(!s) return null;
+    const m = /^(\d{1,2}):(\d{2})$/.exec(s.trim());
+    if(!m) return null;
+    return (+m[1])*60 + (+m[2]);
+  }
+  function fmtClock(min){
+    const m = ((Math.round(min) % 1440) + 1440) % 1440;
+    return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+  }
+
+  function rates(){
+    return {
+      up:   Math.max(1,   numv($('#rateUp'))   || 300),
+      down: Math.max(1,   numv($('#rateDown')) || 500),
+      flat: Math.max(0.1, numv($('#rateFlat')) || 4)
+    };
+  }
+  /* Nominale Gehzeit in Stunden: Vertikalzeit gegen Horizontalzeit,
+     kleinerer Wert halbiert und zum größeren addiert. */
+  function gehzeit(up, down, dist){
+    const r = rates();
+    const tv = up/r.up + down/r.down;
+    const th = dist/r.flat;
+    return Math.max(tv,th) + Math.min(tv,th)/2;
+  }
+
+  /* ---------------- Routenverlauf ---------------- */
+  const body = $('#routeBody');
+
+  function rowHTML(type, ort){
+    const act = '<td class="actcell noprint" style="text-align:center">' +
+                (type === 'start' ? '' : '<button class="btn icon del" title="Zeile löschen">✕</button>') + '</td>';
+    if(type === 'start'){
+      return '<tr class="r-start" data-type="start">' +
+        '<td><input type="text" class="r-ort" value="'+ort+'"></td>' +
+        '<td><input type="time" class="r-start-time"></td>' +
+        '<td><input type="number" class="r-alt" step="10"></td>' +
+        '<td><span class="dash">—</span></td>' +
+        '<td><span class="dash">—</span></td>' +
+        '<td><span class="dash">—</span></td>' +
+        '<td><input type="text" class="r-note"></td>' + act + '</tr>';
+    }
+    if(type === 'pause'){
+      return '<tr class="r-pause" data-type="pause">' +
+        '<td><input type="text" class="r-ort" value="'+ort+'"></td>' +
+        '<td class="cell-c r-time">–</td>' +
+        '<td><input type="number" class="r-alt" step="10"></td>' +
+        '<td><span class="dash">—</span></td>' +
+        '<td><span class="dash">—</span></td>' +
+        '<td><input type="number" class="r-pmin" step="5" min="0"></td>' +
+        '<td><input type="text" class="r-note"></td>' + act + '</tr>';
+    }
+    return '<tr data-type="leg">' +
+      '<td><input type="text" class="r-ort" value="'+ort+'"></td>' +
+      '<td class="cell-c r-time">–</td>' +
+      '<td><input type="number" class="r-alt" step="10"></td>' +
+      '<td><div class="hmcell"><span class="sgn">+</span><input type="number" class="r-up" step="10" min="0">' +
+          '<span class="sgn">−</span><input type="number" class="r-down" step="10" min="0"></div></td>' +
+      '<td><input type="number" class="r-dist" step="0.1" min="0"></td>' +
+      '<td class="cell-c r-need">–</td>' +
+      '<td><input type="text" class="r-note"></td>' + act + '</tr>';
+  }
+
+  function addRow(type, ort){
+    body.insertAdjacentHTML('beforeend', rowHTML(type, ort || ''));
+    recalc();
+    const tr = body.lastElementChild;
+    const first = tr.querySelector('input');
+    if(first) first.focus();
+    return tr;
+  }
+
+  function buildDefault(){
+    body.innerHTML = rowHTML('start','Start');
+    body.querySelector('.r-start-time').value = $('#f_uhrzeit').value;
+    addRow('leg','');
+    addRow('leg','');
+    addRow('leg','Ziel, Hütte, Tal');
+  }
+
+  /* ---------------- Berechnung ---------------- */
+  function recalc(){
+    const rows = $$('#routeBody tr');
+    let startMin = null, cum = 0;
+    let sUp = 0, sDown = 0, sDist = 0, sPause = 0, sNeed = 0;
+
+    rows.forEach(function(tr){
+      const type = tr.dataset.type;
+
+      if(type === 'start'){
+        startMin = parseClock(tr.querySelector('.r-start-time').value) ||
+                   parseClock($('#f_uhrzeit').value);
+        cum = 0;
+        return;
+      }
+
+      let need = 0;                                    // Minuten
+      if(type === 'pause'){
+        need = Math.max(0, numv(tr.querySelector('.r-pmin')));
+        sPause += need;
+      } else {
+        const up   = Math.max(0, numv(tr.querySelector('.r-up')));
+        const down = Math.max(0, numv(tr.querySelector('.r-down')));
+        const dist = Math.max(0, numv(tr.querySelector('.r-dist')));
+        sUp += up; sDown += down; sDist += dist;
+        need = Math.round(gehzeit(up, down, dist) * 60);
+        sNeed += need;
+        const nc = tr.querySelector('.r-need');
+        nc.textContent = need > 0 ? need : '–';
+        nc.classList.toggle('on', need > 0);
+      }
+
+      cum += need;
+      const tc = tr.querySelector('.r-time');
+      if(tc){
+        const has = startMin !== null && cum > 0;
+        tc.textContent = has ? fmtClock(startMin + cum) : '–';
+        tc.classList.toggle('on', has);
+      }
+    });
+
+    $('#routeSum').textContent =
+      'Summe Routenverlauf: ' + fmtN(sUp,0) + ' Hm ↑ · ' + fmtN(sDown,0) + ' Hm ↓ · ' +
+      fmtN(sDist,1) + ' km · ' + fmtN(sPause,0) + ' min Pause · Zeitbedarf ' + fmtHM((sNeed+sPause)/60) + ' h';
+
+    if($('#autoSum').checked){
+      $('#m_up').value    = sUp   ? Math.round(sUp)   : '';
+      $('#m_down').value  = sDown ? Math.round(sDown) : '';
+      $('#m_dist').value  = sDist ? Math.round(sDist*10)/10 : '';
+      $('#m_pause').value = sPause? Math.round(sPause): '';
+    }
+
+    recalcMarsch(sNeed/60);
+  }
+
+  function recalcMarsch(routeSumHours){
+    const r     = rates();
+    const hUp   = Math.max(0, numv($('#m_up')));
+    const hDown = Math.max(0, numv($('#m_down')));
+    const dist  = Math.max(0, numv($('#m_dist')));
+    const pause = Math.max(0, numv($('#m_pause'))) / 60;
+
+    const tUp   = hUp/r.up, tDown = hDown/r.down, tHor = dist/r.flat;
+    const tVert = tUp + tDown;
+    const big   = Math.max(tVert, tHor), small = Math.min(tVert, tHor);
+    const geh   = big + small/2;
+    const total = geh + pause;
+
+    $('#r_up').textContent    = fmtHM2(tUp);
+    $('#r_down').textContent  = fmtHM2(tDown);
+    $('#r_dist').textContent  = fmtHM2(tHor);
+    $('#r_pause').textContent = fmtHM2(pause);
+    $('#r_total').textContent = fmtHM2(total);
+
+    /* ---- Detailauswertung (Bildschirm) ---- */
+    $('#kUp').textContent   = fmtHM(tUp) + ' h';
+    $('#kUpS').textContent  = fmtN(hUp,0) + ' Hm ÷ ' + fmtN(r.up,0) + ' Hm/h';
+    $('#kDown').textContent = fmtHM(tDown) + ' h';
+    $('#kDownS').textContent= fmtN(hDown,0) + ' Hm ÷ ' + fmtN(r.down,0) + ' Hm/h';
+    $('#kVert').textContent = fmtHM(tVert) + ' h';
+    $('#kHor').textContent  = fmtHM(tHor) + ' h';
+    $('#kHorS').textContent = fmtN(dist,1) + ' km ÷ ' + fmtN(r.flat,1) + ' km/h';
+
+    const vertIsBig = tVert >= tHor;
+    $('#calc').innerHTML =
+      'Aufstieg       t<sub>↑</sub> = ' + fmtN(hUp,0)  + ' Hm / ' + fmtN(r.up,0)   + ' Hm/h = <b>' + fmtN(tUp,2)   + ' h</b><br>' +
+      'Abstieg        t<sub>↓</sub> = ' + fmtN(hDown,0)+ ' Hm / ' + fmtN(r.down,0) + ' Hm/h = <b>' + fmtN(tDown,2) + ' h</b><br>' +
+      'Vertikalzeit   t<sub>v</sub> = ' + fmtN(tUp,2)  + ' h + ' + fmtN(tDown,2) + ' h = <b>' + fmtN(tVert,2) + ' h</b><br>' +
+      'Horizontalzeit t<sub>h</sub> = ' + fmtN(dist,1) + ' km / ' + fmtN(r.flat,1) + ' km/h = <b>' + fmtN(tHor,2) + ' h</b><br><br>' +
+      'größerer Wert (' + (vertIsBig?'Vertikalzeit':'Horizontalzeit') + ')&nbsp; = ' + fmtN(big,2) + ' h<br>' +
+      'kleinerer Wert (' + (vertIsBig?'Horizontalzeit':'Vertikalzeit') + ') = ' + fmtN(small,2) +
+        ' h&nbsp; →&nbsp; halbiert = ' + fmtN(small/2,2) + ' h<br><br>' +
+      'Gehzeit = ' + fmtN(big,2) + ' h + ' + fmtN(small/2,2) + ' h = <span class="hl"><b>' +
+        fmtN(geh,2) + ' h ≙ ' + fmtHM(geh) + ' h</b></span><br>' +
+      'Gesamt  = Gehzeit + ' + fmtN(pause,2) + ' h Pause = <span class="hl"><b>' +
+        fmtN(total,2) + ' h ≙ ' + fmtHM(total) + ' h</b></span>';
+
+    /* Etappen: je Richtung die halbe Distanz */
+    const tHalf = (dist/2) / r.flat;
+    const leg = (tv, vLabel) => {
+      const b = Math.max(tv, tHalf), s = Math.min(tv, tHalf);
+      return { t:b+s/2, big:b, small:s, tv:tv, bigName:(tv >= tHalf ? vLabel : 'halbe Distanz') };
+    };
+    const gip = leg(tUp,'Aufstieg'), rue = leg(tDown,'Abstieg');
+    const legCalc = (g, hm, rate, vName) =>
+      vName + ' = ' + fmtN(hm,0) + ' Hm / ' + fmtN(rate,0) + ' Hm/h = <b>' + fmtN(g.tv,2) + ' h</b><br>' +
+      'halbe Distanz = ' + fmtN(dist/2,1) + ' km / ' + fmtN(r.flat,1) + ' km/h = <b>' + fmtN(tHalf,2) + ' h</b><br>' +
+      'größer: ' + fmtN(g.big,2) + ' h (' + g.bigName + ')&nbsp; ·&nbsp; kleiner: ' + fmtN(g.small,2) + ' h<br>' +
+      'Gehzeit = ' + fmtN(g.big,2) + ' h + ' + fmtN(g.small/2,2) + ' h = <span class="hl"><b>' +
+        fmtN(g.t,2) + ' h ≙ ' + fmtHM(g.t) + ' h</b></span>';
+
+    $('#gTime').textContent = fmtHM(gip.t) + ' h';
+    $('#gSub').textContent  = fmtN(hUp,0) + ' Hm Aufstieg · ' + fmtN(dist/2,1) + ' km';
+    $('#gCalc').innerHTML   = legCalc(gip, hUp, r.up, 'Aufstieg');
+    $('#bTime').textContent = fmtHM(rue.t) + ' h';
+    $('#bSub').textContent  = fmtN(hDown,0) + ' Hm Abstieg · ' + fmtN(dist/2,1) + ' km';
+    $('#bCalc').innerHTML   = legCalc(rue, hDown, r.down, 'Abstieg&nbsp;');
+
+    const legSum = gip.t + rue.t;
+    $('#legNote').innerHTML =
+      'Beide Etappen zusammen: <b>' + fmtHM(legSum) + ' h</b> (' + fmtN(legSum,2) + ' h). ' +
+      (Math.abs(legSum - geh) < 0.005
+        ? 'Das entspricht der Gehzeit der Gesamttour.'
+        : 'Die Gesamttour ergibt ' + fmtHM(geh) + ' h — die Differenz von ' + fmtHM(Math.abs(legSum-geh)) +
+          ' h entsteht, weil die Halbierung des kleineren Wertes je Etappe getrennt statt einmal über die ganze Tour angewendet wird.');
+
+    /* Hinweis, wenn Summe der Abschnittszeiten von der Gesamtformel abweicht */
+    const w = [];
+    if(routeSumHours > 0 && Math.abs(routeSumHours - geh) >= 1/60){
+      w.push('Hinweis: Die Summe der Abschnittszeiten im Routenverlauf beträgt ' + fmtHM(routeSumHours) +
+             ' h, die Gesamtformel ergibt ' + fmtHM(geh) + ' h. Beides ist korrekt — ' +
+             'die Halbierung wirkt je Abschnitt anders als über die Gesamttour.');
+    }
+    $('#warn').textContent = w.join(' ');
+  }
+
+  /* ---------------- Risikoskalen ---------------- */
+  const RISK_SUB = ['Ausbildungsstand, Erfahrung','Ausrüstung, Bekleidung',
+                    'Länge (Kraft, Kondition, Zeitbedarf)','Orientierung, Routenfindung',
+                    'Gruppe (Größe, Dynamik)'];
+  const RISK_OBJ = ['Wetter','Umkehrmöglichkeiten','Abstieg','Absturz','Steinschlag'];
+
+  function buildRisk(container, names, prefix){
+    container.innerHTML = names.map(function(n,i){
+      return '<div class="rname">'+n+'</div>' +
+             '<div class="scale" id="'+prefix+i+'" tabindex="0" role="slider" aria-label="'+n+
+             '" aria-valuemin="0" aria-valuemax="100"><span class="ph">klicken zum Bewerten</span>' +
+             '<span class="marker">✕</span></div>';
+    }).join('');
+  }
+  function setScale(el, pct){
+    pct = Math.max(0, Math.min(100, pct));
+    el.classList.add('set');
+    el.dataset.val = String(Math.round(pct));
+    el.setAttribute('aria-valuenow', String(Math.round(pct)));
+    el.querySelector('.marker').style.left = pct + '%';
+  }
+  function scaleFromEvent(el, clientX){
+    const r = el.getBoundingClientRect();
+    setScale(el, (clientX - r.left) / r.width * 100);
+  }
+  function bindScales(){
+    let dragging = null;
+    document.addEventListener('mousedown', function(e){
+      const el = e.target.closest ? e.target.closest('.scale') : null;
+      if(!el) return;
+      dragging = el; scaleFromEvent(el, e.clientX); e.preventDefault(); el.focus();
+    });
+    document.addEventListener('mousemove', function(e){ if(dragging) scaleFromEvent(dragging, e.clientX); });
+    document.addEventListener('mouseup',   function(){ dragging = null; });
+    document.addEventListener('keydown', function(e){
+      const el = document.activeElement;
+      if(!el || !el.classList || !el.classList.contains('scale')) return;
+      const cur = el.classList.contains('set') ? +el.dataset.val : 50;
+      if(e.key === 'ArrowRight' || e.key === 'ArrowUp')   { setScale(el, cur+5); e.preventDefault(); }
+      if(e.key === 'ArrowLeft'  || e.key === 'ArrowDown') { setScale(el, cur-5); e.preventDefault(); }
+      if(e.key === 'Home'){ setScale(el, 0);   e.preventDefault(); }
+      if(e.key === 'End') { setScale(el, 100); e.preventDefault(); }
+      if(e.key === 'Backspace' || e.key === 'Delete'){
+        el.classList.remove('set'); delete el.dataset.val; e.preventDefault();
+      }
+    });
+  }
+
+  /* ---------------- Ereignisse ---------------- */
+  body.addEventListener('input', recalc);
+  body.addEventListener('click', function(e){
+    const b = e.target.closest ? e.target.closest('.del') : null;
+    if(!b) return;
+    b.closest('tr').remove();
+    recalc();
+  });
+
+  $('#addLeg').addEventListener('click',   function(){ addRow('leg',''); });
+  $('#addPause').addEventListener('click', function(){ addRow('pause','Pause'); });
+
+  ['#m_up','#m_down','#m_dist','#m_pause'].forEach(function(s){
+    $(s).addEventListener('input', function(){ recalcMarsch(0); });
+  });
+  ['#rateUp','#rateDown','#rateFlat'].forEach(function(s){
+    $(s).addEventListener('input', recalc);
+  });
+
+  /* Die Uhrzeit aus dem Kopf ist zugleich die Startzeit im Routenverlauf */
+  function syncStartTime(){
+    const inp = body.querySelector('.r-start-time');
+    if(inp) inp.value = $('#f_uhrzeit').value;
+    recalc();
+  }
+  $('#f_uhrzeit').addEventListener('input', syncStartTime);
+
+  /* Checkliste vollständig? */
+  const checkIds = ['#c1','#c2','#c3','#c4','#c5','#c6'];
+  function updateChecklist(){
+    const all = checkIds.every(function(s){ return $(s).checked; });
+    $('#checklist').classList.toggle('complete', all);
+  }
+  checkIds.forEach(function(s){ $(s).addEventListener('change', updateChecklist); });
+
+  /* Eingabefelder klippen langen Text — für den Druck den vollen Wert spiegeln */
+  function syncPtext(){
+    $$('.inforow input').forEach(function(inp){
+      let sp = inp.nextElementSibling;
+      if(!sp || !sp.classList.contains('ptext')){
+        sp = document.createElement('span');
+        sp.className = 'ptext' + (inp.classList.contains('short') ? ' short' : '');
+        inp.parentNode.insertBefore(sp, inp.nextSibling);
+      }
+      sp.textContent = inp.value;
+    });
+  }
+  $('.infoblock').addEventListener('input', syncPtext);
+
+  $('#autoSum').addEventListener('change', function(){
+    ['#m_up','#m_down','#m_dist','#m_pause'].forEach(function(s){ $(s).readOnly = $('#autoSum').checked; });
+    recalc();
+  });
+
+  $('#rateReset').addEventListener('click', function(){
+    $('#rateUp').value = 300; $('#rateDown').value = 500; $('#rateFlat').value = 4; recalc();
+  });
+
+  $('#btnPdf').addEventListener('click', function(){ window.print(); });
+
+  $('#btnClear').addEventListener('click', function(){
+    if(!confirm('Alle Eingaben im Formular löschen?')) return;
+    $$('input[type=text], input[type=number], input[type=time], input[type=date], textarea')
+      .forEach(function(el){ if(!el.closest('.params')) el.value = ''; });
+    $$('input[type=checkbox]').forEach(function(el){ if(el.id !== 'autoSum') el.checked = false; });
+    $('#w_dir').value = '';
+    $$('.scale').forEach(function(el){ el.classList.remove('set'); delete el.dataset.val; });
+    buildDefault();
+    syncPtext(); updateChecklist();
+  });
+
+  $('#btnDemo').addEventListener('click', function(){
+    $('#f_tour').value = 'Bergtour Hochschwab';
+    $('#f_ziel').value = 'Hochschwab-Gipfel, 2.277 m';
+    $('#f_datum').value = '2026-08-15';
+    $('#f_treff').value = 'Parkplatz Bodenbauer';
+    $('#f_uhrzeit').value = '07:00';
+    $('#f_fuehrer').value = 'Max Mustermann';
+    $('#f_gruppe').value = '4 Personen';
+    $('#f_namen').value = 'M. Mustermann, A. Berger, S. Koller, T. Maier';
+    $('#i_klasse').value = 'Bergweg rot, T3, kurze versicherte Stelle';
+    $('#i_tel').value = 'Schiestlhaus +43 3859 2005';
+    $('#i_notruf').value = '140 / 112';
+    $('#i_anreise').value = 'PKW bis Bodenbauer, Rückfahrt gleich';
+    $('#i_verpflegung').value = 'Jause aus dem Rucksack, Hütteneinkehr ca. 25 €';
+    $('#i_ausruestung').value = 'Helm, Regenschutz, Stirnlampe, Erste-Hilfe-Set';
+
+    body.innerHTML = rowHTML('start','Bodenbauer (Start)');
+    body.querySelector('.r-start-time').value = '07:00';
+    body.querySelector('.r-alt').value = 880;
+
+    const fill = (tr, o, alt, up, dn, km, note) => {
+      tr.querySelector('.r-ort').value = o;
+      tr.querySelector('.r-alt').value = alt;
+      if(tr.dataset.type === 'leg'){
+        tr.querySelector('.r-up').value   = up;
+        tr.querySelector('.r-down').value = dn;
+        tr.querySelector('.r-dist').value = km;
+      } else {
+        tr.querySelector('.r-pmin').value = up;
+      }
+      tr.querySelector('.r-note').value = note;
+    };
+    fill(addRow('leg'),  'Häuselalm',      1330, 450, 0,   2.6, 'Forstweg, gleichmäßig');
+    fill(addRow('pause'),'Rast Häuselalm', 1330, 15,  0,   0,   'Trinken, Schichten anpassen');
+    fill(addRow('leg'),  'Schiestlhaus',   2153, 830, 10,  3.4, 'Steiler Steig, Helm ab Graben');
+    fill(addRow('pause'),'Mittagsrast',    2153, 45,  0,   0,   'Einkehr');
+    fill(addRow('leg'),  'Hochschwab-Gipfel', 2277, 130, 5, 0.9, 'Gipfelaufbau, Trittsicherheit');
+    fill(addRow('leg'),  'Ziel, Hütte, Tal', 880, 20, 1420, 6.8, 'Abstieg über Aufstiegsroute');
+
+    $('#w_b2').checked = true; $('#w_n1').checked = true; $('#w_w2').checked = true;
+    $('#w_g1').checked = true; $('#w_gab').value = '15:00';
+    $('#w_null').value = 3600; $('#w_t2000').value = 9; $('#w_dir').value = 'NW';
+
+    ['s0','s1','s2','s3','s4'].forEach(function(id,i){ setScale($('#'+id), [20,25,60,35,45][i]); });
+    ['o0','o1','o2','o3','o4'].forEach(function(id,i){ setScale($('#'+id), [55,30,50,40,65][i]); });
+    for(let i=1;i<=6;i++) $('#c'+i).checked = true;
+    $('#p2_infos').value = 'Schlüsselstelle: versicherter Quergang unterhalb des Schiestlhauses — ' +
+      'bei Nässe heikel. Umkehrpunkt Schiestlhaus, spätester Gipfelzeitpunkt 13:00 wegen Gewitterneigung ab 15:00.';
+    recalc(); syncPtext(); updateChecklist();
+  });
+
+  /* ---------------- Start ---------------- */
+  buildRisk($('#riskSub'), RISK_SUB, 's');
+  buildRisk($('#riskObj'), RISK_OBJ, 'o');
+  bindScales();
+  buildDefault();
+  syncPtext();
+  updateChecklist();
+  ['#m_up','#m_down','#m_dist','#m_pause'].forEach(function(s){ $(s).readOnly = true; });
+})();
+</script>
+</body>
+</html>
