@@ -83,7 +83,7 @@
   td input[type=number]{text-align:right; font-variant-numeric:tabular-nums}
   input[type=number]::-webkit-inner-spin-button{opacity:.35}
   .cell-c{text-align:center; font-variant-numeric:tabular-nums; padding:5px 4px; color:var(--muted)}
-  .cell-c.on{color:var(--txt); font-weight:600}
+  .cell-c.on, .r-need.on{color:var(--txt); font-weight:600}
   .dash{color:#4a5878; text-align:center; display:block; padding:5px 0}
 
   #route col.c-ort{width:19%} #route col.c-time{width:8%} #route col.c-alt{width:8%}
@@ -95,8 +95,11 @@
   /* Werte im Routenverlauf mittig unter der jeweiligen Spaltenüberschrift */
   td input.r-start-time, td input.r-alt, td input.r-up, td input.r-down,
   td input.r-dist, td input.r-pmin{text-align:center}
-  td input.r-start-time{font-weight:600}
   td input.r-pmin{font-weight:600}
+  /* Zeitfelder ignorieren text-align — der innere Editor muss selbst zentriert werden */
+  td input.r-start-time{font-weight:600; display:flex; justify-content:center; align-items:center}
+  td input.r-start-time::-webkit-datetime-edit{flex:none}
+  td input.r-start-time::-webkit-calendar-picker-indicator{display:none}
   tr.r-pause td{background:rgba(245,158,11,.07)}
   tr.r-start td{background:rgba(34,197,94,.07)}
   .rowtools{display:flex; gap:8px; margin-top:9px; align-items:center; flex-wrap:wrap}
@@ -125,7 +128,7 @@
   .inforow input{flex:1; background:transparent; border:none; color:var(--txt); font:inherit; font-size:13px; padding:6px}
   .inforow input:focus{outline:none; background:rgba(59,130,246,.1)}
   .inforow .tag{font-size:12px; font-weight:650; color:var(--muted); padding-left:8px; white-space:nowrap}
-  .inforow input.short{flex:0 0 120px}
+  .inforow input.short{flex:0 0 120px; text-align:center}
   .ptext{display:none}
 
   /* ---------- Wetter ---------- */
@@ -246,7 +249,8 @@
   /* =======================================================
      DRUCK / PDF  —  2 Seiten A4, helles Layout
      ======================================================= */
-  @page{ size:A4 portrait; margin:11mm 10mm; }
+  /* Seitenränder mit Reserve zum nicht bedruckbaren Bereich der meisten Drucker */
+  @page{ size:A4 portrait; margin:11mm 13mm; }
 
   @media print{
     body{background:#fff; color:#000; font-size:9pt; line-height:1.3}
@@ -262,8 +266,12 @@
     }
     .sheet:last-of-type{break-after:auto; page-break-after:auto}
 
-    .sheet h1{font-size:16pt; color:#000; margin:0 0 8pt}
-    .sheet h2{font-size:12.5pt; color:#000; margin:11pt 0 4pt}
+    .sheet h1{font-size:15pt; color:#000; margin:0 0 6pt}
+    .sheet h2{font-size:12pt; color:#000; margin:8pt 0 3.5pt}
+    /* Blöcke nie über den Seitenrand zerreißen */
+    .weather, .rgroup, .twocol, .marsch, .infoblock, .risklegend, tr{
+      break-inside:avoid; page-break-inside:avoid;
+    }
     .sheet h3{font-size:8.5pt; color:#333}
     .hero{font-size:30pt}
 
@@ -274,7 +282,7 @@
     th,td{border:.6pt solid #999}
     th{background:#e9e9e9 !important; color:#000; font-size:7.4pt; padding:3pt 2pt}
     td input, td select{color:#000; font-size:7.6pt; padding:2.6pt 3pt; background:none !important}
-    .cell-c, .cell-c.on{color:#000; padding:2.6pt 2pt}
+    .cell-c, .cell-c.on, .r-need, .r-need.on{color:#000; padding:2.6pt 2pt}
     .hmcell .sgn{color:#333; font-size:7pt}
     .dash{color:#aaa}
 
@@ -293,6 +301,30 @@
     td.actcell{display:none}
     th.actcell{display:none}
 
+    /* ---- Halbzeilen-Versatz ab Spalte „Höhenmeter" ----
+       Die Abschnittswerte gelten für die Strecke ZWISCHEN dem vorigen und diesem Ort.
+       Wie in der Vorlage sitzt ihr Kästchen deshalb um eine halbe Zeile nach oben versetzt,
+       also mittig zwischen den beiden Ortszeilen. Die senkrechten Spaltenlinien laufen durch,
+       die waagrechten werden für den Abschnittsblock versetzt neu gezeichnet. */
+    /* Feste Zeilenhöhe von 18 pt, damit der Versatz exakt eine halbe Zeile (9 pt) ist */
+    #route tbody td{height:18pt; padding:0 3pt; line-height:18pt; position:relative}
+    #route tbody td input{height:18pt; line-height:18pt; padding:0 2pt}
+    #route tbody td.seg{border-top:none; border-bottom:none; background:transparent !important}
+    #route tbody td.seg > *{position:relative; top:-9pt; z-index:2}
+    #route tbody td.seg::before{      /* versetzte Zeilenschattierung */
+      content:""; position:absolute; left:0; right:0; top:-9pt; height:18pt;
+      background:#fafafa; z-index:0;
+    }
+    #route tbody tr:nth-child(odd) td.seg::before{background:#fff}
+    #route tbody td.seg::after{       /* versetzte Trennlinie oberhalb des Kästchens */
+      content:""; position:absolute; left:0; right:0; top:-9pt; height:0;
+      border-top:.6pt solid #999; z-index:1;
+    }
+    /* Die Startzeile hat keinen Abschnitt davor — ihr Kästchen läge in der Kopfzeile */
+    #route tbody tr.r-start td.seg > *,
+    #route tbody tr.r-start td.seg::after,
+    #route tbody tr.r-start td.seg::before{display:none; content:none}
+
     #mtab td.lbl, #mtab td.unit, #mtab td.res{color:#000; font-size:8.4pt; padding:3pt 5pt}
     #mtab tr.total td{background:#ececec !important; font-size:9pt}
     #mtab tr.total td.res{color:#000}
@@ -309,33 +341,40 @@
       display:block; flex:1; color:#000; font-size:8.6pt; padding:3.5pt 5pt;
       overflow-wrap:anywhere; min-height:1em;
     }
-    .inforow .ptext.short{flex:0 0 60pt}
+    /* Notruf-Wert mittig in der Zeile — sonst sitzt er oben, während "Notruf" mittig steht */
+    .inforow .ptext.short{flex:0 0 60pt; text-align:center; align-self:center}
     .inforow .tag{color:#000; align-self:center}
 
     .weather{border-color:#999}
-    .wcol{border-left-color:#999; padding:5pt 6pt}
-    .wico{font-size:13pt}
-    .wtit{font-size:8.6pt; color:#000}
-    .cb{font-size:8.2pt; color:#000; margin-bottom:2.5pt}
+    .wcol{border-left-color:#999; padding:4pt 5pt}
+    .wico{font-size:10pt}
+    .wtit{font-size:8.4pt; color:#000; margin:1pt 0 4pt}
+    .cb{font-size:8pt; color:#000; margin-bottom:2pt}
     .wsub{font-size:8.2pt; color:#000}
     .wsub input, .wsub select{color:#000; border-bottom-color:#666; font-size:8.2pt; background:none !important}
     input[type=checkbox]{width:9pt; height:9pt; border:.8pt solid #444; border-radius:1.5pt}
     input[type=checkbox]:checked{background:#fff !important; border-color:#000}
     input[type=checkbox]:checked::after{content:"✕"; color:#000; font-size:8pt}
 
-    .risklegend .lbl{color:#000; font-size:8pt}
-    .rname{font-size:8.4pt; color:#000}
-    .scale{height:11pt; border:.6pt solid #888; opacity:1}
+    .risklegend .lbl{color:#000; font-size:7.6pt}
+    .rname{font-size:8pt; color:#000; padding:1pt 0}
+    .scale{height:9.5pt; border:.6pt solid #888; opacity:1}
     .scale .ph{display:none !important}
-    .scale .marker{color:#000; text-shadow:none; font-size:10pt}
-    .riskgrid{grid-template-columns:150pt 1fr; gap:1.5pt 9pt}
-    .rgroup{margin-bottom:8pt}
-    .rgroup h3, .rgroup.obj h3{color:#000; margin-bottom:3pt}
+    .scale .marker{color:#000; text-shadow:none; font-size:9pt}
+    .riskgrid{grid-template-columns:145pt 1fr; gap:1pt 9pt}
+    .rgroup{margin-bottom:6pt}
+    .rgroup h3, .rgroup.obj h3{color:#000; margin-bottom:2.5pt}
 
     .checklist{border:none !important; background:none !important; padding:0; margin:0}
-    .checklist .cb{font-size:8.6pt; margin-bottom:4pt}
+    .checklist .cb{font-size:8.2pt; margin-bottom:3pt}
     .allok{display:none !important}
-    textarea{border:.6pt solid #999; color:#000; min-height:92pt; font-size:8.6pt; background:none !important}
+    /* Das Textfeld darf nicht bis an die Blattkante laufen, sonst schneidet der Drucker es an */
+    .twocol > div{min-width:0}
+    textarea{
+      border:.6pt solid #999; color:#000; min-height:92pt; font-size:8.6pt;
+      background:none !important; width:calc(100% - 3pt); max-width:calc(100% - 3pt);
+      resize:none; overflow:hidden;
+    }
 
     .sheetfoot{border-top:.6pt solid #999; color:#000; font-size:8pt; margin-top:10pt; padding-top:4pt}
     .sheetfoot b{color:#000}
@@ -413,6 +452,7 @@
     <button class="btn sm ghost" id="addPause">+ Pause</button>
     <span class="sum" id="routeSum"></span>
   </div>
+  <div class="warnline noprint" id="rowWarn"></div>
 
   <h2>Marschzeitberechnung</h2>
   <div class="marsch">
@@ -643,7 +683,9 @@
 <div class="note noprint" style="margin-top:20px; padding-top:12px; border-top:1px solid var(--line)">
   <b style="color:var(--txt)">PDF-Export:</b> Im Druckdialog als Ziel „Als PDF sichern" wählen und unter
   „Weitere Einstellungen" die <b style="color:var(--txt)">Kopf- und Fußzeilen deaktivieren</b> — sonst druckt
-  der Browser Dateipfad und Datum über die Formularfußzeile. Ränder auf „Standard", Papierformat A4.
+  der Browser Dateipfad und Datum über die Formularfußzeile und nimmt dem Blatt die Höhe, die für zwei
+  Seiten nötig ist. Papierformat <b style="color:var(--txt)">A4</b>, Ränder „Standard", Skalierung
+  <b style="color:var(--txt)">100 %</b>, Hintergrundgrafiken aktiviert.
 </div>
 
 </div>
@@ -703,35 +745,37 @@
   function rowHTML(type, ort){
     const act = '<td class="actcell noprint" style="text-align:center">' +
                 (type === 'start' ? '' : '<button class="btn icon del" title="Zeile löschen">✕</button>') + '</td>';
+    /* Die Zellen ab „Höhenmeter" gehören zum Abschnitt zwischen zwei Orten (Klasse "seg")
+       und werden im Druck um eine halbe Zeile versetzt dargestellt. */
     if(type === 'start'){
       return '<tr class="r-start" data-type="start">' +
         '<td><input type="text" class="r-ort" value="'+ort+'"></td>' +
         '<td><input type="time" class="r-start-time"></td>' +
         '<td><input type="number" class="r-alt" step="10"></td>' +
-        '<td><span class="dash">—</span></td>' +
-        '<td><span class="dash">—</span></td>' +
-        '<td><span class="dash">—</span></td>' +
-        '<td><input type="text" class="r-note"></td>' + act + '</tr>';
+        '<td class="seg"><span class="dash">—</span></td>' +
+        '<td class="seg"><span class="dash">—</span></td>' +
+        '<td class="seg"><span class="dash">—</span></td>' +
+        '<td class="seg"><input type="text" class="r-note"></td>' + act + '</tr>';
     }
     if(type === 'pause'){
       return '<tr class="r-pause" data-type="pause">' +
         '<td><input type="text" class="r-ort" value="'+ort+'"></td>' +
         '<td class="cell-c r-time">–</td>' +
         '<td><input type="number" class="r-alt" step="10"></td>' +
-        '<td><span class="dash">—</span></td>' +
-        '<td><span class="dash">—</span></td>' +
-        '<td><input type="number" class="r-pmin" step="5" min="0"></td>' +
-        '<td><input type="text" class="r-note"></td>' + act + '</tr>';
+        '<td class="seg"><span class="dash">—</span></td>' +
+        '<td class="seg"><span class="dash">—</span></td>' +
+        '<td class="seg"><input type="number" class="r-pmin" step="5" min="0"></td>' +
+        '<td class="seg"><input type="text" class="r-note"></td>' + act + '</tr>';
     }
     return '<tr data-type="leg">' +
       '<td><input type="text" class="r-ort" value="'+ort+'"></td>' +
       '<td class="cell-c r-time">–</td>' +
       '<td><input type="number" class="r-alt" step="10"></td>' +
-      '<td><div class="hmcell"><span class="sgn">+</span><input type="number" class="r-up" step="10" min="0">' +
+      '<td class="seg"><div class="hmcell"><span class="sgn">+</span><input type="number" class="r-up" step="10" min="0">' +
           '<span class="sgn">−</span><input type="number" class="r-down" step="10" min="0"></div></td>' +
-      '<td><input type="number" class="r-dist" step="0.1" min="0"></td>' +
-      '<td class="cell-c r-need">–</td>' +
-      '<td><input type="text" class="r-note"></td>' + act + '</tr>';
+      '<td class="seg"><input type="number" class="r-dist" step="0.1" min="0"></td>' +
+      '<td class="cell-c seg"><span class="r-need">–</span></td>' +
+      '<td class="seg"><input type="text" class="r-note"></td>' + act + '</tr>';
   }
 
   function addRow(type, ort){
@@ -791,6 +835,12 @@
         tc.classList.toggle('on', has);
       }
     });
+
+    /* Auf Seite 1 des PDF passen rund 16 Zeilen; darüber entsteht eine Zusatzseite. */
+    $('#rowWarn').textContent = rows.length > 16
+      ? 'Der Routenverlauf hat ' + rows.length + ' Zeilen — auf Seite 1 des PDF passen rund 16. '
+        + 'Darüber hinaus druckt der Browser eine Zusatzseite.'
+      : '';
 
     $('#routeSum').textContent =
       'Summe Routenverlauf: ' + fmtN(sUp,0) + ' Hm ↑ · ' + fmtN(sDown,0) + ' Hm ↓ · ' +
