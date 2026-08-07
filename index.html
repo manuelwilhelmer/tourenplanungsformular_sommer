@@ -6,9 +6,9 @@
 <title>Tourenplanungsformular</title>
 <style>
   :root{
-    --bg:#0f172a; --panel:#111c33; --panel2:#16233f; --line:#25324f;
-    --txt:#e6ecf7; --muted:#93a2c2; --accent:#3b82f6; --accent2:#22c55e;
-    --warn:#f59e0b; --red:#ef4444; --card:#152443;
+    --bg:#20293c; --panel:#2c3750; --panel2:#38465f; --line:#4a5872;
+    --txt:#eef2f9; --muted:#aab8d0; --accent:#4f8ef7; --accent2:#2fbf62;
+    --warn:#f0a63a; --red:#ef5350; --card:#323e56;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -21,7 +21,7 @@
 
   /* ---------- App-Kopf (nur Bildschirm) ---------- */
   .appbar{
-    background:linear-gradient(90deg,#0b1428,#152443);
+    background:linear-gradient(90deg,#242e42,#33405a);
     padding:12px 22px; border-bottom:1px solid var(--line);
     display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
     position:sticky; top:0; z-index:20;
@@ -30,6 +30,7 @@
   .appbar .sub{color:var(--muted); font-size:12px}
   .appbar .copy{color:var(--muted); font-size:11.5px; opacity:.75; margin-top:1px}
   .appbar .tools{display:flex; gap:9px; align-items:center; flex-wrap:wrap}
+  .appbar .sep{width:1px; height:20px; background:var(--line)}
   .btn{
     background:var(--accent); color:#fff; border:none; padding:8px 14px; border-radius:7px;
     font-size:13px; cursor:pointer; font-weight:550; font-family:inherit;
@@ -84,14 +85,40 @@
   input[type=number]::-webkit-inner-spin-button{opacity:.35}
   .cell-c{text-align:center; font-variant-numeric:tabular-nums; padding:5px 4px; color:var(--muted)}
   .cell-c.on, .r-need.on{color:var(--txt); font-weight:600}
-  .dash{color:#4a5878; text-align:center; display:block; padding:5px 0}
+  .dash{color:#78859f; text-align:center; display:block; padding:0}
 
   #route col.c-ort{width:19%} #route col.c-time{width:8%} #route col.c-alt{width:8%}
-  #route col.c-hm{width:14%} #route col.c-dist{width:8%} #route col.c-need{width:8%}
+  #route col.c-hm{width:16%} #route col.c-dist{width:8%} #route col.c-need{width:8%}
   #route col.c-act{width:3%}
   .hmcell{display:flex; align-items:center; gap:2px; padding:0 4px}
   .hmcell .sgn{color:var(--muted); font-size:11px; flex:none}
-  .hmcell input{text-align:right; padding:5px 2px}
+  .hmcell input{text-align:right; padding:0 2px}
+
+  /* ---- Halbzeilen-Versatz ab Spalte „Höhenmeter" ----
+     Die Werte gelten für die Strecke ZWISCHEN dem vorigen und diesem Ort. Ihr Kästchen
+     sitzt deshalb um eine halbe Zeile nach oben versetzt, also mittig zwischen beiden
+     Ortszeilen. Senkrechte Spaltenlinien laufen durch, die waagrechten werden für den
+     Abschnittsblock versetzt neu gezeichnet. Feste Zeilenhöhe, damit der Versatz stimmt. */
+  #route tbody td{height:30px; padding:0 6px; line-height:30px; position:relative}
+  #route tbody td input{height:30px; line-height:30px; padding:0 5px}
+  /* Spinner würden bei fester Zeilenhöhe die Werte beschneiden */
+  #route tbody input[type=number]{appearance:textfield; -moz-appearance:textfield}
+  #route tbody input[type=number]::-webkit-inner-spin-button,
+  #route tbody input[type=number]::-webkit-outer-spin-button{display:none; appearance:none; margin:0}
+  #route tbody td.seg{border-top:none; border-bottom:none; background:transparent}
+  #route tbody td.seg > *{position:relative; top:-15px; z-index:2}
+  #route tbody td.seg::before{
+    content:""; position:absolute; left:0; right:0; top:-15px; height:30px; z-index:0;
+  }
+  #route tbody tr.r-pause td.seg::before{background:rgba(245,158,11,.07)}
+  #route tbody td.seg::after{
+    content:""; position:absolute; left:0; right:0; top:-15px; height:0;
+    border-top:1px solid var(--line); z-index:1;
+  }
+  #route tbody tr.r-start td.seg::before,
+  #route tbody tr.r-start td.seg::after{content:none}
+  /* Unterste Zeile schließt im Abschnittsblock sonst ohne Linie ab */
+  #route tbody tr:last-child td.seg{border-bottom:1px solid var(--line)}
   /* Werte im Routenverlauf mittig unter der jeweiligen Spaltenüberschrift */
   td input.r-start-time, td input.r-alt, td input.r-up, td input.r-down,
   td input.r-dist, td input.r-pmin{text-align:center}
@@ -189,7 +216,7 @@
   .rgroup.obj h3{color:#38bdf8}
 
   .checklist{border:1px solid transparent; border-radius:10px; padding:8px 10px; margin:-8px -10px; transition:.18s}
-  .checklist.complete{border-color:#1c4a30; background:rgba(34,197,94,.11)}
+  .checklist.complete{border-color:#3a7d56; background:rgba(47,191,98,.13)}
   .checklist .cb{margin-bottom:6px; font-size:13px; align-items:flex-start; line-height:1.4}
   .checklist .cb input{margin-top:2px}
   .allok{display:none; margin-top:8px; color:#5be08a; font-size:12.5px; font-weight:600}
@@ -261,7 +288,9 @@
     .printonly{display:block !important}
     .sheetfoot.printonly{display:flex !important}
     .sheet{
-      background:#fff; border:none; border-radius:0; padding:0; margin:0;
+      background:#fff; border:none; border-radius:0; margin:0;
+      /* 2 pt Luft rechts: eine Rahmenlinie exakt auf der Blattkante wird sonst weggeschnitten */
+      padding:0 2pt 0 0;
       break-after:page; page-break-after:always;
     }
     .sheet:last-of-type{break-after:auto; page-break-after:auto}
@@ -292,6 +321,7 @@
     input[type=number]::-webkit-outer-spin-button{display:none !important; appearance:none}
     input[type=date]::-webkit-calendar-picker-indicator,
     input[type=time]::-webkit-calendar-picker-indicator{display:none !important}
+    input.leer::-webkit-datetime-edit{visibility:hidden}
     select{appearance:none; -webkit-appearance:none; background-image:none !important}
     tr.r-pause td{background:#f6f1e6 !important}
     tr.r-start td{background:#eef7ef !important}
@@ -301,29 +331,15 @@
     td.actcell{display:none}
     th.actcell{display:none}
 
-    /* ---- Halbzeilen-Versatz ab Spalte „Höhenmeter" ----
-       Die Abschnittswerte gelten für die Strecke ZWISCHEN dem vorigen und diesem Ort.
-       Wie in der Vorlage sitzt ihr Kästchen deshalb um eine halbe Zeile nach oben versetzt,
-       also mittig zwischen den beiden Ortszeilen. Die senkrechten Spaltenlinien laufen durch,
-       die waagrechten werden für den Abschnittsblock versetzt neu gezeichnet. */
-    /* Feste Zeilenhöhe von 18 pt, damit der Versatz exakt eine halbe Zeile (9 pt) ist */
-    #route tbody td{height:18pt; padding:0 3pt; line-height:18pt; position:relative}
+    /* Halbzeilen-Versatz wie am Bildschirm, nur in Punkt-Maßen: Zeile 18 pt, Versatz 9 pt */
+    #route tbody td{height:18pt; padding:0 3pt; line-height:18pt}
     #route tbody td input{height:18pt; line-height:18pt; padding:0 2pt}
-    #route tbody td.seg{border-top:none; border-bottom:none; background:transparent !important}
-    #route tbody td.seg > *{position:relative; top:-9pt; z-index:2}
-    #route tbody td.seg::before{      /* versetzte Zeilenschattierung */
-      content:""; position:absolute; left:0; right:0; top:-9pt; height:18pt;
-      background:#fafafa; z-index:0;
-    }
+    #route tbody td.seg{background:transparent !important}
+    #route tbody td.seg > *{top:-9pt}
+    #route tbody td.seg::before{top:-9pt; height:18pt; background:#fafafa}
     #route tbody tr:nth-child(odd) td.seg::before{background:#fff}
-    #route tbody td.seg::after{       /* versetzte Trennlinie oberhalb des Kästchens */
-      content:""; position:absolute; left:0; right:0; top:-9pt; height:0;
-      border-top:.6pt solid #999; z-index:1;
-    }
-    /* Die Startzeile hat keinen Abschnitt davor — ihr Kästchen läge in der Kopfzeile */
-    #route tbody tr.r-start td.seg > *,
-    #route tbody tr.r-start td.seg::after,
-    #route tbody tr.r-start td.seg::before{display:none; content:none}
+    #route tbody td.seg::after{top:-9pt; border-top:.6pt solid #999}
+    #route tbody tr:last-child td.seg{border-bottom:.6pt solid #999}
 
     #mtab td.lbl, #mtab td.unit, #mtab td.res{color:#000; font-size:8.4pt; padding:3pt 5pt}
     #mtab tr.total td{background:#ececec !important; font-size:9pt}
@@ -398,6 +414,11 @@
   <div class="tools">
     <button class="btn ghost sm" id="btnDemo">Beispiel füllen</button>
     <button class="btn ghost sm" id="btnClear">Formular leeren</button>
+    <span class="sep"></span>
+    <button class="btn ghost sm" id="btnSave" title="Tour als .tour.json-Datei sichern">💾 Tour speichern</button>
+    <button class="btn ghost sm" id="btnLoad" title="Gespeicherte Tour öffnen">📂 Tour laden</button>
+    <input type="file" id="fileIn" accept=".json,application/json" hidden>
+    <span class="sep"></span>
     <button class="btn" id="btnPdf">⤓ Als PDF exportieren</button>
   </div>
 </div>
@@ -743,7 +764,9 @@
   const body = $('#routeBody');
 
   function rowHTML(type, ort){
-    const act = '<td class="actcell noprint" style="text-align:center">' +
+    /* Die Löschspalte gehört zum versetzten Abschnittsblock (Klasse "seg"), damit ihre
+       Zellgrenzen im selben Raster liegen wie die Kästchen daneben. */
+    const act = '<td class="actcell seg noprint" style="text-align:center">' +
                 (type === 'start' ? '' : '<button class="btn icon del" title="Zeile löschen">✕</button>') + '</td>';
     /* Die Zellen ab „Höhenmeter" gehören zum Abschnitt zwischen zwei Orten (Klasse "seg")
        und werden im Druck um eine halbe Zeile versetzt dargestellt. */
@@ -752,10 +775,9 @@
         '<td><input type="text" class="r-ort" value="'+ort+'"></td>' +
         '<td><input type="time" class="r-start-time"></td>' +
         '<td><input type="number" class="r-alt" step="10"></td>' +
-        '<td class="seg"><span class="dash">—</span></td>' +
-        '<td class="seg"><span class="dash">—</span></td>' +
-        '<td class="seg"><span class="dash">—</span></td>' +
-        '<td class="seg"><input type="text" class="r-note"></td>' + act + '</tr>';
+        /* Vor dem Start liegt kein Abschnitt — der versetzte Block bleibt hier leer */
+        '<td class="seg"></td><td class="seg"></td><td class="seg"></td><td class="seg"></td>' +
+        act + '</tr>';
     }
     if(type === 'pause'){
       return '<tr class="r-pause" data-type="pause">' +
@@ -1034,6 +1056,15 @@
   }
   $('.infoblock').addEventListener('input', syncPtext);
 
+  /* Leere Datums- und Zeitfelder zeigen sonst „--:--" bzw. „tt.mm.jjjj" — im Druck
+     soll dort nichts stehen, damit man von Hand eintragen kann. */
+  function markLeer(){
+    $$('input[type=time], input[type=date]').forEach(function(el){
+      el.classList.toggle('leer', !el.value);
+    });
+  }
+  document.addEventListener('input', markLeer);
+
   $('#autoSum').addEventListener('change', function(){
     ['#m_up','#m_down','#m_dist','#m_pause'].forEach(function(s){ $(s).readOnly = $('#autoSum').checked; });
     recalc();
@@ -1045,6 +1076,97 @@
 
   $('#btnPdf').addEventListener('click', function(){ window.print(); });
 
+  /* ---------------- Tour speichern / laden ----------------
+     Dateiformat: JSON (.tour.json) — reiner Text, versioniert, von jedem Editor
+     und jeder Programmiersprache lesbar. */
+  const FORMAT = 'tourenplanungsformular';
+
+  function collectTour(){
+    const d = { format:FORMAT, version:1, gespeichert:new Date().toISOString(),
+                felder:{}, route:[], skalen:{} };
+    $$('input[id], textarea[id], select[id]').forEach(function(el){
+      if(el.type === 'file') return;
+      d.felder[el.id] = (el.type === 'checkbox') ? el.checked : el.value;
+    });
+    $$('#routeBody tr').forEach(function(tr){
+      const g = s => { const e = tr.querySelector(s); return e ? e.value : ''; };
+      d.route.push({ typ:tr.dataset.type, ort:g('.r-ort'), startzeit:g('.r-start-time'),
+        hoehe:g('.r-alt'), aufstieg:g('.r-up'), abstieg:g('.r-down'),
+        distanz:g('.r-dist'), pause:g('.r-pmin'), kommentar:g('.r-note') });
+    });
+    $$('.scale').forEach(function(el){
+      d.skalen[el.id] = el.classList.contains('set') ? +el.dataset.val : null;
+    });
+    return d;
+  }
+
+  function applyTour(d){
+    body.innerHTML = '';
+    (d.route || []).forEach(function(r){
+      const typ = (r.typ === 'start' || r.typ === 'pause') ? r.typ : 'leg';
+      body.insertAdjacentHTML('beforeend', rowHTML(typ, ''));
+      const tr = body.lastElementChild;
+      const s = (sel, v) => { const e = tr.querySelector(sel); if(e && v != null) e.value = v; };
+      s('.r-ort', r.ort);       s('.r-start-time', r.startzeit); s('.r-alt', r.hoehe);
+      s('.r-up', r.aufstieg);   s('.r-down', r.abstieg);         s('.r-dist', r.distanz);
+      s('.r-pmin', r.pause);    s('.r-note', r.kommentar);
+    });
+    if(!body.children.length) buildDefault();
+
+    Object.keys(d.felder || {}).forEach(function(id){
+      const el = document.getElementById(id);
+      if(!el || el.type === 'file') return;
+      if(el.type === 'checkbox') el.checked = !!d.felder[id];
+      else el.value = d.felder[id];
+    });
+
+    $$('.scale').forEach(function(el){ el.classList.remove('set'); delete el.dataset.val; });
+    Object.keys(d.skalen || {}).forEach(function(id){
+      const el = document.getElementById(id);
+      if(el && typeof d.skalen[id] === 'number') setScale(el, d.skalen[id]);
+    });
+
+    ['#m_up','#m_down','#m_dist','#m_pause'].forEach(function(s){ $(s).readOnly = $('#autoSum').checked; });
+    recalc(); syncPtext(); updateChecklist(); markLeer();
+  }
+
+  function dateiname(){
+    const tour  = ($('#f_tour').value || $('#f_ziel').value || 'Tourenplanung').trim();
+    const datum = $('#f_datum').value || new Date().toISOString().slice(0,10);
+    const rein  = tour.replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'-').slice(0,60);
+    return datum + '_' + (rein || 'Tourenplanung') + '.tour.json';
+  }
+
+  $('#btnSave').addEventListener('click', function(){
+    const txt  = JSON.stringify(collectTour(), null, 2);
+    const url  = URL.createObjectURL(new Blob([txt], {type:'application/json'}));
+    const a    = document.createElement('a');
+    a.href = url; a.download = dateiname();
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
+  });
+
+  $('#btnLoad').addEventListener('click', function(){ $('#fileIn').click(); });
+
+  $('#fileIn').addEventListener('change', function(e){
+    const f = e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    const rd = new FileReader();
+    rd.onload = function(){
+      let d;
+      try { d = JSON.parse(rd.result); }
+      catch(err){ alert('Die Datei enthält kein gültiges JSON:\n' + err.message); return; }
+      if(!d || d.format !== FORMAT){
+        alert('Das ist keine gespeicherte Tour dieses Formulars.'); return;
+      }
+      if(!confirm('Gespeicherte Tour laden? Die aktuellen Eingaben werden dabei ersetzt.')) return;
+      applyTour(d);
+    };
+    rd.onerror = function(){ alert('Die Datei konnte nicht gelesen werden.'); };
+    rd.readAsText(f);
+  });
+
   $('#btnClear').addEventListener('click', function(){
     if(!confirm('Alle Eingaben im Formular löschen?')) return;
     $$('input[type=text], input[type=number], input[type=time], input[type=date], textarea')
@@ -1053,7 +1175,7 @@
     $('#w_dir').value = '';
     $$('.scale').forEach(function(el){ el.classList.remove('set'); delete el.dataset.val; });
     buildDefault();
-    syncPtext(); updateChecklist();
+    syncPtext(); updateChecklist(); markLeer();
   });
 
   $('#btnDemo').addEventListener('click', function(){
@@ -1096,7 +1218,7 @@
     fill(addRow('leg'),  'Ziel, Hütte, Tal', 880, 20, 1420, 6.8, 'Abstieg über Aufstiegsroute');
 
     $('#w_b2').checked = true; $('#w_n1').checked = true; $('#w_w2').checked = true;
-    $('#w_g1').checked = true; $('#w_gab').value = '15:00';
+    $('#w_g1').checked = true;
     $('#w_null').value = 3600; $('#w_t2000').value = 9; $('#w_dir').value = 'NW';
 
     ['s0','s1','s2','s3','s4'].forEach(function(id,i){ setScale($('#'+id), [20,25,60,35,45][i]); });
@@ -1104,16 +1226,26 @@
     for(let i=1;i<=6;i++) $('#c'+i).checked = true;
     $('#p2_infos').value = 'Schlüsselstelle: versicherter Quergang unterhalb des Schiestlhauses — ' +
       'bei Nässe heikel. Umkehrpunkt Schiestlhaus, spätester Gipfelzeitpunkt 13:00 wegen Gewitterneigung ab 15:00.';
-    recalc(); syncPtext(); updateChecklist();
+    recalc(); syncPtext(); updateChecklist(); markLeer();
   });
 
   /* ---------------- Start ---------------- */
   buildRisk($('#riskSub'), RISK_SUB, 's');
   buildRisk($('#riskObj'), RISK_OBJ, 'o');
   bindScales();
+  /* Browser stellen beim Neuladen zuvor eingetippte Werte wieder her. Bei Datum und
+     Uhrzeit erscheint das als Vorgabe, die niemand eingetragen hat — und eine falsch
+     wiederhergestellte Startzeit verschiebt stillschweigend alle Ankunftszeiten.
+     Zeit- und Datumsfelder starten deshalb immer leer; zum Sichern gibt es „Tour speichern". */
+  $$('input[type=time], input[type=date]').forEach(function(el){
+    el.setAttribute('autocomplete','off');
+    el.value = el.getAttribute('value') || '';
+  });
+
   buildDefault();
   syncPtext();
   updateChecklist();
+  markLeer();
   ['#m_up','#m_down','#m_dist','#m_pause'].forEach(function(s){ $(s).readOnly = true; });
 })();
 </script>
